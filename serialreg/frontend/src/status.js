@@ -28,3 +28,31 @@ export const ITEM_STATUS = {
 };
 
 export const ISSUE_KIND = { regular: "普通期", combined: "两期合刊" };
+
+// 盘点快照结论
+export const STOCKTAKE_RESULT = {
+  unseen: { label: "未见", cls: "missing", hint: "未扫到，关闭时进入遗失候选" },
+  seen: { label: "已见", cls: "ok", hint: "已扫描确认" },
+  misplaced: { label: "错架", cls: "warning", hint: "扫到但实际位置不符" },
+  review: { label: "待核查", cls: "review", hint: "盘点期间被移动/拆订/修改，有冲突" },
+};
+
+export const STOCKTAKE_OUTCOME = {
+  pending: "待处理",
+  lost_candidate: "遗失候选",
+  lost_confirmed: "已转遗失",
+  kept: "保留",
+};
+
+export const STOCKTAKE_STATUS = {
+  open: "进行中",
+  closed: "已关闭",
+  reopened: "已重新打开",
+};
+
+export const SCAN_EVENT = {
+  recorded: "已记录",
+  duplicate: "重复扫描",
+  out_of_scope: "范围外",
+  unknown: "未知条码",
+};

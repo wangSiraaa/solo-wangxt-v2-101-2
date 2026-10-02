@@ -168,3 +168,54 @@ button.tiny { padding: 3px 9px; font-size: 12px; }
   margin-top: 8px; border-top: 1px dashed var(--line); padding-top: 8px;
 }
 code { background: #eef1f5; padding: 0 4px; border-radius: 4px; font-size: 12px; }
+
+/* ============ 盘点 ============ */
+.badge.warning { background: #fff4e0; color: #b36b00; }
+.badge.review { background: #fde8f3; color: #b02a78; }
+.st-badge { font-size: 11px; }
+
+.st-active-banner {
+  background: #eef4fc;
+  border: 1px solid #c9dcf5;
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-bottom: 12px;
+  font-size: 13px;
+}
+
+.stocktake-panel { margin-bottom: 14px; }
+.st-head { display: flex; justify-content: space-between; align-items: center;
+  gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
+.scan-row { align-items: flex-end; }
+.st-stats { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0; }
+.st-chip { padding: 3px 10px; border-radius: 12px; font-size: 12px;
+  background: #f1f4f8; color: var(--ink); }
+.st-chip.ok { background: var(--ok-bg); color: var(--ok); }
+.st-chip.warning { background: #fff4e0; color: #b36b00; }
+.st-chip.missing { background: var(--missing-bg); color: var(--missing); }
+.st-chip.review { background: #fde8f3; color: #b02a78; }
+.st-chip.gap { background: var(--gap-bg); color: var(--gap); }
+
+.st-blockers { margin: 6px 0; padding-left: 18px; color: var(--missing);
+  font-size: 13px; }
+.st-gaps { margin: 6px 0; font-size: 12px; }
+.st-table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 13px; }
+.st-table th, .st-table td { border: 1px solid var(--line); padding: 5px 8px;
+  text-align: left; vertical-align: top; }
+.st-table th { background: #f7f9fc; font-weight: 600; }
+.st-table tr.row-review { background: #fdf2f8; }
+.st-table tr.row-misplaced { background: #fffaf0; }
+.st-table tr.row-unseen { background: #fcf8f8; }
+.tiny-text { font-size: 11px; margin-top: 2px; }
+
+.st-conflict { background: #fdf2f8; border: 1px solid #f2c4de;
+  border-radius: 6px; padding: 6px 8px; margin: 4px 0; font-size: 12px; }
+.st-conflict.scope { background: var(--gap-bg); border-color: #e7d59a; }
+.st-conflict button { margin: 4px 6px 0 0; }
+button.ok-btn { background: var(--ok); color: #fff; }
+
+.st-close { display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+  margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--line); }
+.st-audit { margin-top: 10px; font-size: 12px; }
+.st-audit ul { padding-left: 18px; margin: 6px 0; }
+.st-audit li { margin-bottom: 3px; }

@@ -60,4 +60,39 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ binding_id: bindingId }),
     }),
+
+  // ---------- 盘点 ----------
+  listStocktakes: (titleId) =>
+    request(titleId ? `/stocktakes/?title=${titleId}` : "/stocktakes/"),
+  stocktake: (id) => request(`/stocktakes/${id}/`),
+  createStocktake: (payload) =>
+    request("/stocktakes/", { method: "POST", body: JSON.stringify(payload) }),
+  scanStocktake: (id, payload) =>
+    request(`/stocktakes/${id}/scan/`, {
+      method: "POST", body: JSON.stringify(payload),
+    }),
+  refreshStocktake: (id, payload = {}) =>
+    request(`/stocktakes/${id}/refresh/`, {
+      method: "POST", body: JSON.stringify(payload),
+    }),
+  resolveConflict: (id, payload) =>
+    request(`/stocktakes/${id}/resolve_conflict/`, {
+      method: "POST", body: JSON.stringify(payload),
+    }),
+  confirmComplete: (id, payload = {}) =>
+    request(`/stocktakes/${id}/confirm_complete/`, {
+      method: "POST", body: JSON.stringify(payload),
+    }),
+  closeStocktake: (id, payload = {}) =>
+    request(`/stocktakes/${id}/close/`, {
+      method: "POST", body: JSON.stringify(payload),
+    }),
+  confirmLosses: (id, itemIds) =>
+    request(`/stocktakes/${id}/confirm_losses/`, {
+      method: "POST", body: JSON.stringify({ item_ids: itemIds }),
+    }),
+  reopenStocktake: (id, payload = {}) =>
+    request(`/stocktakes/${id}/reopen/`, {
+      method: "POST", body: JSON.stringify(payload),
+    }),
 };

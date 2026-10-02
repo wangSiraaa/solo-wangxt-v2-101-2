@@ -4,13 +4,47 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from .models import (
-    Binding, Issue, IssueNumber, IssueNumbering, Item, Title,
+    Binding, Issue, IssueNumber, IssueNumbering, Item,
+    StocktakeBatch, StocktakeSnapshotItem, Title,
     locate_number, number_holding_status,
 )
 from .serializers import (
     BindingSerializer, IssueSerializer, ItemSerializer,
     IssueNumberSerializer, TitleSerializer, UnbindSerializer,
 )
+
+
+def _active_stocktake(title_id):
+    """该刊当前进行中的盘点批次（可能为 None）。"""
+    return (
+        StocktakeBatch.objects.filter(
+            title_id=title_id,
+            status__in=[StocktakeBatch.Status.OPEN,
+                        StocktakeBatch.Status.REOPENED],
+        )
+        .prefetch_related("snapshot_items")
+        .order_by("-created_at")
+        .first()
+    )
+
+
+def _item_stocktake_marks(active_batch):
+    """item_id -> 该实体在进行中批次里的盘点结论（含快照范围标记）。"""
+    if active_batch is None:
+        return {}
+    return {
+        row.item_id: {
+            "in_scope": True,
+            "result": row.result,
+            "result_label": dict(
+                StocktakeSnapshotItem.Result.choices).get(row.result,
+                                                          row.result),
+            "outcome": row.outcome,
+            "observed_location": row.observed_location,
+            "frozen_actual_location": row.frozen_actual_location(),
+        }
+        for row in active_batch.snapshot_items.all()
+    }
 
 
 class TitleViewSet(viewsets.ModelViewSet):
@@ -63,6 +97,9 @@ class ItemViewSet(viewsets.ModelViewSet):
 
         if barcode:
             items = self.get_queryset().filter(barcode=barcode)
+            active = _active_stocktake(
+                items.first().title_id) if items.exists() else None
+            marks = _item_stocktake_marks(active)
             result = []
             for it in items:
                 result.append({
@@ -77,8 +114,21 @@ class ItemViewSet(viewsets.ModelViewSet):
                     "binding": it.binding_entry.binding.call_number
                     if it.is_bound else None,
                     "status": it.status,
+                    "stocktake": (
+                        {"batch_id": active.id, **marks[it.id]}
+                        if active is not None and it.id in marks else None
+                    ),
                 })
-            return Response({"query": {"barcode": barcode}, "matches": result})
+            return Response({
+                "query": {"barcode": barcode},
+                "active_stocktake": (
+                    {"id": active.id, "name": str(active),
+                     "status": active.status,
+                     "scope_location": active.scope_location}
+                    if active is not None else None
+                ),
+                "matches": result,
+            })
 
         if not (title_id and number):
             return Response(
@@ -105,11 +155,27 @@ class ItemViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         matches = locate_number(issue_number)
+        active = _active_stocktake(title_id)
+        marks = _item_stocktake_marks(active)
+        for row in matches:
+            mark = None
+            if active is not None:
+                # locate_number 只带 barcode，反查 item id 取盘点标记
+                item = Item.objects.filter(barcode=row["barcode"]).first()
+                if item is not None and item.id in marks:
+                    mark = {"batch_id": active.id, **marks[item.id]}
+            row["stocktake"] = mark
         # 缺号（无发行记录）是正常业务状态，返回 200，不自动等同缺藏
         return Response({
             "query": {"title": title_id, "volume": volume, "number": number},
             "holding_status": number_holding_status(issue_number.title, issue_number),
             "matches": matches,
+            "active_stocktake": (
+                {"id": active.id, "name": str(active),
+                 "status": active.status,
+                 "scope_location": active.scope_location}
+                if active is not None else None
+            ),
         })
 
 
@@ -152,6 +218,8 @@ class TimelineViewSet(viewsets.ViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         title = Title.objects.get(pk=title_id)
+        active = _active_stocktake(title_id)
+        marks = _item_stocktake_marks(active)
         numbers = (
             IssueNumber.objects.filter(title=title)
             .prefetch_related(
@@ -205,6 +273,11 @@ class TimelineViewSet(viewsets.ViewSet):
                                 "bound": it.is_bound,
                                 "binding": it.binding_entry.binding.call_number
                                 if it.is_bound else None,
+                                "stocktake": (
+                                    {"batch_id": active.id, **marks[it.id]}
+                                    if active is not None and it.id in marks
+                                    else None
+                                ),
                             }
                             for it in iss.items.all()
                         ],
@@ -215,4 +288,14 @@ class TimelineViewSet(viewsets.ViewSet):
         return Response({
             "title": TitleSerializer(title).data,
             "slots": slots,
+            "active_stocktake": (
+                {
+                    "id": active.id, "name": str(active),
+                    "status": active.status,
+                    "scope_location": active.scope_location,
+                    "completeness_confirmed":
+                        active.completeness_confirmed,
+                }
+                if active is not None else None
+            ),
         })

@@ -1,4 +1,5 @@
 from django.db import transaction
+from django.db.models import F
 from rest_framework import serializers
 
 from .models import (
@@ -230,6 +231,7 @@ class BindingSerializer(serializers.ModelSerializer):
         ])
         Item.objects.filter(id__in=[it.id for it in items]).update(
             status=Item.ItemStatus.BOUND,
+            version=F("version") + 1,
         )
         return binding
 
@@ -245,10 +247,12 @@ class UnbindSerializer(serializers.Serializer):
     def save(self, **kwargs):
         binding = self.validated_data["binding_id"]
         entries = list(binding.entries.select_related("item"))
+        items = []
         for e in entries:
             e.item.location = e.previous_location
             e.item.status = Item.ItemStatus.AVAILABLE
-            e.item.save(update_fields=["location", "status"])
+            e.item.save(update_fields=["location", "status"])  # 版本自增
+            items.append(e.item)
         BindingEntry.objects.filter(binding=binding).delete()
         binding.delete()
-        return [e.item for e in entries]
+        return items

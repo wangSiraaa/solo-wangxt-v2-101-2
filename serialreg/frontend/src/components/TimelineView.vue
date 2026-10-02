@@ -10,6 +10,16 @@
       </span>
     </h2>
 
+    <div v-if="data.active_stocktake" class="st-active-banner">
+      📋 盘点进行中：#{{ data.active_stocktake.id }}
+      {{ data.active_stocktake.name || "盘点批次" }}
+      （{{ data.active_stocktake.scope_location || "全部库位" }}）
+      <span v-if="data.active_stocktake.completeness_confirmed" class="badge ok">
+        范围已确认完整
+      </span>
+      —— 时间轴上的「盘点」徽标以冻结快照为准。
+    </div>
+
     <div class="timeline">
       <div
         v-for="slot in data.slots"
@@ -59,6 +69,11 @@
               <span class="badge" :class="it.status === 'lost' ? 'missing' : 'ok'">
                 {{ itemStatus[it.status] || it.status }}
               </span>
+              <span v-if="it.stocktake" class="badge st-badge"
+                    :class="stCls(it.stocktake.result)"
+                    :title="stTitle(it.stocktake)">
+                盘点：{{ stMeta(it.stocktake.result).label }}
+              </span>
               <span class="loc">
                 📍 {{ it.location || "（未排架）" }}
                 <template v-if="it.bound">（装订册 {{ it.binding }}）</template>
@@ -78,13 +93,22 @@
 </template>
 
 <script setup>
-import { HOLDING_STATUS, ITEM_STATUS } from "../status.js";
+import { HOLDING_STATUS, ITEM_STATUS, STOCKTAKE_RESULT } from "../status.js";
 
 defineProps({ data: Object });
 defineEmits(["mark-lost"]);
 const itemStatus = ITEM_STATUS;
 
 const isGap = (s) => s === "not_published" || s === "ceased_gap";
+
+function stMeta(r) {
+  return STOCKTAKE_RESULT[r] || { label: r, cls: "gap" };
+}
+const stCls = (r) => stMeta(r).cls;
+function stTitle(st) {
+  return `冻结位置：${st.frozen_actual_location || "（未排架）"}` +
+    (st.observed_location ? `；扫到位置：${st.observed_location}` : "");
+}
 
 function statusMeta(s) {
   return HOLDING_STATUS[s] || { label: s, cls: "gap", hint: "" };

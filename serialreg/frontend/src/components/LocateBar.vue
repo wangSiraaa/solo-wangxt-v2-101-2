@@ -35,6 +35,11 @@
         <span class="badge" :class="m.status === 'lost' ? 'missing' : 'ok'">
           {{ itemStatus[m.status] || m.status }}
         </span>
+        <span v-if="m.stocktake" class="badge st-badge"
+              :class="stCls(m.stocktake.result)"
+              :title="'冻结位置：' + (m.stocktake.frozen_actual_location || '（未排架）')">
+          盘点：{{ stMeta(m.stocktake.result).label }}
+        </span>
         <span class="loc">
           📍 {{ m.location || "（未排架）" }}
           <template v-if="m.bound">（装订册 {{ m.binding }}）</template>
@@ -47,7 +52,7 @@
 <script setup>
 import { ref } from "vue";
 import { api } from "../api.js";
-import { HOLDING_STATUS, ITEM_STATUS } from "../status.js";
+import { HOLDING_STATUS, ITEM_STATUS, STOCKTAKE_RESULT } from "../status.js";
 
 const props = defineProps({ titleId: [Number, String] });
 
@@ -57,6 +62,11 @@ const barcode = ref("");
 const result = ref(null);
 const error = ref("");
 const itemStatus = ITEM_STATUS;
+
+function stMeta(r) {
+  return STOCKTAKE_RESULT[r] || { label: r, cls: "gap" };
+}
+const stCls = (r) => stMeta(r).cls;
 
 function meta(s) {
   return HOLDING_STATUS[s] || { label: s || "未登记", cls: "gap", hint: "" };
@@ -84,7 +94,8 @@ async function byBarcode() {
       ? {
           holding_status:
             m.status === "lost" ? "issued+missing" : "issued+held",
-          matches: [m],
+          active_stocktake: data.active_stocktake,
+          matches: data.matches,
         }
       : { holding_status: "unregistered", matches: [] };
   } catch (e) {
