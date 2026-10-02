@@ -11,6 +11,9 @@ from .serializers import (
     BindingSerializer, IssueSerializer, ItemSerializer,
     IssueNumberSerializer, TitleSerializer, UnbindSerializer,
 )
+from .stocktake_marks import (
+    binding_conflict_items, item_marks, resolve_stocktake,
+)
 
 
 class TitleViewSet(viewsets.ModelViewSet):
@@ -64,8 +67,17 @@ class ItemViewSet(viewsets.ModelViewSet):
         if barcode:
             items = self.get_queryset().filter(barcode=barcode)
             result = []
+            batch = None
+            marks = {}
             for it in items:
+                if batch is None:
+                    batch = resolve_stocktake(
+                        it.title_id,
+                        request.query_params.get("stocktake"),
+                    )
+                    marks = item_marks(batch)
                 result.append({
+                    "item_id": it.id,
                     "barcode": it.barcode,
                     "issue_id": it.issue_id,
                     "numbers": [
@@ -77,8 +89,13 @@ class ItemViewSet(viewsets.ModelViewSet):
                     "binding": it.binding_entry.binding.call_number
                     if it.is_bound else None,
                     "status": it.status,
+                    "stocktake": marks.get(it.id),
                 })
-            return Response({"query": {"barcode": barcode}, "matches": result})
+            return Response({
+                "query": {"barcode": barcode},
+                "stocktake": batch.id if batch else None,
+                "matches": result,
+            })
 
         if not (title_id and number):
             return Response(
@@ -105,10 +122,19 @@ class ItemViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         matches = locate_number(issue_number)
+        batch = resolve_stocktake(
+            int(title_id), request.query_params.get("stocktake"),
+        )
+        marks = item_marks(batch)
+        conflict_items = binding_conflict_items(batch)
+        for m in matches:
+            m["stocktake"] = marks.get(m["item_id"])
+            m["in_conflict"] = m["item_id"] in conflict_items
         # 缺号（无发行记录）是正常业务状态，返回 200，不自动等同缺藏
         return Response({
             "query": {"title": title_id, "volume": volume, "number": number},
             "holding_status": number_holding_status(issue_number.title, issue_number),
+            "stocktake": batch.id if batch else None,
             "matches": matches,
         })
 
@@ -152,6 +178,11 @@ class TimelineViewSet(viewsets.ViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         title = Title.objects.get(pk=title_id)
+        batch = resolve_stocktake(
+            int(title_id), request.query_params.get("stocktake"),
+        )
+        marks = item_marks(batch)
+        conflict_items = binding_conflict_items(batch)
         numbers = (
             IssueNumber.objects.filter(title=title)
             .prefetch_related(
@@ -205,6 +236,8 @@ class TimelineViewSet(viewsets.ViewSet):
                                 "bound": it.is_bound,
                                 "binding": it.binding_entry.binding.call_number
                                 if it.is_bound else None,
+                                "stocktake": marks.get(it.id),
+                                "in_conflict": it.id in conflict_items,
                             }
                             for it in iss.items.all()
                         ],
@@ -212,7 +245,18 @@ class TimelineViewSet(viewsets.ViewSet):
                     for iss in issues
                 ],
             })
+        stocktake_info = None
+        if batch is not None:
+            from .stocktake_views import serialize_batch
+            stocktake_info = {
+                "id": batch.id,
+                "name": str(batch),
+                "state": batch.state,
+                "scope_volume": batch.scope_volume,
+                "completeness": serialize_batch(batch)["completeness"],
+            }
         return Response({
             "title": TitleSerializer(title).data,
             "slots": slots,
+            "stocktake": stocktake_info,
         })

@@ -1,4 +1,5 @@
 from django.db import transaction
+from django.db.models import F
 from rest_framework import serializers
 
 from .models import (
@@ -154,6 +155,13 @@ class ItemSerializer(serializers.ModelSerializer):
             )
         return value
 
+    def update(self, instance, validated_data):
+        # 位置/状态等任何改动都推进版本，盘点据此发现「盘点期间被修改」
+        tracked = {"status", "location", "issue"}
+        if tracked & set(validated_data):
+            validated_data["version"] = instance.version + 1
+        return super().update(instance, validated_data)
+
     def get_current_location(self, obj):
         return obj.current_location()
 
@@ -228,10 +236,24 @@ class BindingSerializer(serializers.ModelSerializer):
             )
             for it in items
         ])
+        # 装订改变实物的实际位置与装订关系：推进实物版本
         Item.objects.filter(id__in=[it.id for it in items]).update(
             status=Item.ItemStatus.BOUND,
+            version=F("version") + 1,
         )
         return binding
+
+    def update(self, instance, validated_data):
+        # 装订册位置即册内实物的实际位置：一并推进装订册与实物版本
+        if "location" in validated_data and \
+                validated_data["location"] != instance.location:
+            validated_data["version"] = instance.version + 1
+            instance = super().update(instance, validated_data)
+            Item.objects.filter(binding_entry__binding=instance).update(
+                version=F("version") + 1,
+            )
+            return instance
+        return super().update(instance, validated_data)
 
 
 class UnbindSerializer(serializers.Serializer):
@@ -245,10 +267,57 @@ class UnbindSerializer(serializers.Serializer):
     def save(self, **kwargs):
         binding = self.validated_data["binding_id"]
         entries = list(binding.entries.select_related("item"))
+        item_ids = [e.item_id for e in entries]
         for e in entries:
             e.item.location = e.previous_location
             e.item.status = Item.ItemStatus.AVAILABLE
-            e.item.save(update_fields=["location", "status"])
+            e.item.version += 1
+            e.item.save(update_fields=["location", "status", "version"])
         BindingEntry.objects.filter(binding=binding).delete()
         binding.delete()
         return [e.item for e in entries]
+
+
+class StocktakeCreateSerializer(serializers.Serializer):
+    """启动盘点：冻结范围内实物、装订关系、位置与版本快照。"""
+
+    title = serializers.PrimaryKeyRelatedField(queryset=Title.objects.all())
+    scope_volume = serializers.CharField(
+        required=False, allow_blank=True, default="",
+    )
+    name = serializers.CharField(required=False, allow_blank=True, default="")
+    note = serializers.CharField(required=False, allow_blank=True, default="")
+
+    def validate(self, attrs):
+        from .models import IssueNumbering
+        volume = attrs.get("scope_volume") or ""
+        if volume:
+            used = IssueNumbering.objects.filter(
+                number__title=attrs["title"], number__volume=volume,
+            ).exists()
+            if not used:
+                raise serializers.ValidationError(
+                    {"scope_volume": f"该刊没有卷 {volume} 的编号，范围为空。"},
+                )
+        return attrs
+
+
+class StocktakeScanSerializer(serializers.Serializer):
+    barcode = serializers.CharField(max_length=60)
+    observed_location = serializers.CharField(
+        required=False, allow_blank=True, default="",
+    )
+
+
+class StocktakeReviewSerializer(serializers.Serializer):
+    item_id = serializers.IntegerField()
+    result = serializers.ChoiceField(
+        choices=["seen", "misplaced", "review", "lost"],
+    )
+    observed_location = serializers.CharField(
+        required=False, allow_blank=True, default=None,
+    )
+
+
+class StocktakeCloseSerializer(serializers.Serializer):
+    confirm = serializers.BooleanField(default=False)

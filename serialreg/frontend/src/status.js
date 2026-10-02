@@ -28,3 +28,21 @@ export const ITEM_STATUS = {
 };
 
 export const ISSUE_KIND = { regular: "普通期", combined: "两期合刊" };
+
+// 盘点结果标记
+export const STOCKTAKE_RESULT = {
+  pending: { label: "未见", cls: "missing", hint: "尚未扫到" },
+  seen: { label: "已见", cls: "ok", hint: "盘点已扫到，位置一致" },
+  misplaced: { label: "错架", cls: "warn", hint: "扫到但不在快照位置" },
+  review: { label: "待核查", cls: "conflict", hint: "盘点期间数据有变化" },
+  lost: { label: "盘点遗失", cls: "missing", hint: "已确认遗失" },
+};
+
+export const CONFLICT_KIND = {
+  item_changed: "实物在盘点期间被修改（位置/状态）",
+  moved_in: "实物盘点期间新进入范围",
+  moved_out: "实物盘点期间离开范围",
+  unbound: "盘点期间被拆订",
+  bound: "盘点期间被装订",
+  rebound: "装订成员重组",
+};

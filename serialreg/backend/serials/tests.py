@@ -291,6 +291,7 @@ def test_cannot_bind_across_titles(cross_year_title, combined_title, api):
 @pytest.mark.django_db
 def test_unbind_restores_locations(combined_title, api):
     t, nums, comb_item, comb = combined_title
+    v_before = comb_item.version
     binding = Binding.objects.create(
         call_number="Q/HK-X", title=t, location="装订库 Z-1",
     )
@@ -308,6 +309,8 @@ def test_unbind_restores_locations(combined_title, api):
 
     comb_item.refresh_from_db()
     assert comb_item.status == Item.ItemStatus.AVAILABLE
+    # 拆订推进版本，盘点快照据此发现「盘点期间被拆订」
+    assert comb_item.version > v_before
     # 拆订后恢复各自位置
     assert comb_item.current_location() == "期刊区B-02"
 

@@ -29,7 +29,11 @@ export const api = {
       body: JSON.stringify(payload),
     }),
 
-  timeline: (titleId) => request(`/timeline/?title=${titleId}`),
+  timeline: (titleId, stocktakeId) => {
+    const qs = new URLSearchParams({ title: titleId });
+    if (stocktakeId) qs.set("stocktake", stocktakeId);
+    return request(`/timeline/?${qs}`);
+  },
   listNumbers: (titleId) => request(`/numbers/?title=${titleId}`),
 
   createNumber: (payload) =>
@@ -59,5 +63,45 @@ export const api = {
     request("/bindings/unbind/", {
       method: "POST",
       body: JSON.stringify({ binding_id: bindingId }),
+    }),
+
+  // ---------- 盘点批次 ----------
+  listStocktakes: (titleId, state) => {
+    const qs = new URLSearchParams();
+    if (titleId) qs.set("title", titleId);
+    if (state) qs.set("state", state);
+    const tail = qs.toString() ? `?${qs}` : "";
+    return request(`/stocktakes/${tail}`);
+  },
+  createStocktake: (payload) =>
+    request("/stocktakes/", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  stocktake: (id) => request(`/stocktakes/${id}/`),
+  scanStocktake: (id, payload) =>
+    request(`/stocktakes/${id}/scan/`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  reviewStocktake: (id, payload) =>
+    request(`/stocktakes/${id}/review/`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  resolveConflict: (id, conflictId) =>
+    request(`/stocktakes/${id}/conflicts/${conflictId}/resolve/`, {
+      method: "POST",
+      body: JSON.stringify({}),
+    }),
+  closeStocktake: (id, confirm = false) =>
+    request(`/stocktakes/${id}/close/`, {
+      method: "POST",
+      body: JSON.stringify({ confirm }),
+    }),
+  reopenStocktake: (id) =>
+    request(`/stocktakes/${id}/reopen/`, {
+      method: "POST",
+      body: JSON.stringify({}),
     }),
 };

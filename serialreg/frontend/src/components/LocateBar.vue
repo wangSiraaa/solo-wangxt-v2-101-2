@@ -35,6 +35,14 @@
         <span class="badge" :class="m.status === 'lost' ? 'missing' : 'ok'">
           {{ itemStatus[m.status] || m.status }}
         </span>
+        <span
+          v-if="m.stocktake"
+          class="badge"
+          :class="stockMeta(m.stocktake.result).cls"
+        >
+          盘点·{{ stockMeta(m.stocktake.result).label }}
+        </span>
+        <span v-if="m.in_conflict" class="badge conflict">盘点冲突</span>
         <span class="loc">
           📍 {{ m.location || "（未排架）" }}
           <template v-if="m.bound">（装订册 {{ m.binding }}）</template>
@@ -47,9 +55,12 @@
 <script setup>
 import { ref } from "vue";
 import { api } from "../api.js";
-import { HOLDING_STATUS, ITEM_STATUS } from "../status.js";
+import { HOLDING_STATUS, ITEM_STATUS, STOCKTAKE_RESULT } from "../status.js";
 
-const props = defineProps({ titleId: [Number, String] });
+const props = defineProps({
+  titleId: [Number, String],
+  stocktakeId: [Number, String, null],
+});
 
 const volume = ref("");
 const number = ref("");
@@ -57,6 +68,9 @@ const barcode = ref("");
 const result = ref(null);
 const error = ref("");
 const itemStatus = ITEM_STATUS;
+
+const stockMeta = (r) =>
+  STOCKTAKE_RESULT[r] || { label: r, cls: "gap" };
 
 function meta(s) {
   return HOLDING_STATUS[s] || { label: s || "未登记", cls: "gap", hint: "" };
@@ -69,6 +83,7 @@ async function byNumber() {
   try {
     result.value = await api.locate({
       title: props.titleId, volume: volume.value, number: number.value,
+      stocktake: props.stocktakeId,
     });
   } catch (e) {
     error.value = e.message;
@@ -78,7 +93,9 @@ async function byBarcode() {
   error.value = "";
   result.value = null;
   try {
-    const data = await api.locate({ barcode: barcode.value });
+    const data = await api.locate({
+      barcode: barcode.value, stocktake: props.stocktakeId,
+    });
     const m = data.matches[0];
     result.value = m
       ? {

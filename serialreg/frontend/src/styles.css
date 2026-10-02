@@ -15,6 +15,10 @@
   --ceased-bg: #eef0f3;
   --combined: #6d3fb0;
   --combined-bg: #f1e9fb;
+  --warn: #b06a00;
+  --warn-bg: #fdf3df;
+  --conflict: #b02a75;
+  --conflict-bg: #fdeaf5;
 }
 
 * { box-sizing: border-box; }
@@ -168,3 +172,32 @@ button.tiny { padding: 3px 9px; font-size: 12px; }
   margin-top: 8px; border-top: 1px dashed var(--line); padding-top: 8px;
 }
 code { background: #eef1f5; padding: 0 4px; border-radius: 4px; font-size: 12px; }
+
+/* 盘点 */
+.badge.warn { background: var(--warn-bg); color: var(--warn); }
+.badge.conflict { background: var(--conflict-bg); color: var(--conflict); }
+.st-stats { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0; }
+.st-pill {
+  border: 1px solid var(--line); border-radius: 999px;
+  padding: 2px 10px; font-size: 12px; background: #fafbfc;
+}
+.st-pill b { font-size: 13px; }
+.st-conflict {
+  border: 1px solid var(--conflict); background: var(--conflict-bg);
+  border-radius: 8px; padding: 8px 12px; margin-bottom: 8px; font-size: 13px;
+}
+.st-item-row {
+  display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+  padding: 5px 8px; border: 1px solid var(--line);
+  border-radius: 6px; margin-top: 6px; background: #fff;
+}
+.st-scanbox { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.st-scanbox input[type=text] { min-width: 200px; }
+.st-history { margin-top: 10px; border-top: 1px dashed var(--line); padding-top: 8px; }
+.st-event { font-size: 12px; color: var(--muted); margin: 2px 0; }
+.st-banner {
+  border-radius: 8px; padding: 8px 12px; margin-bottom: 10px;
+  font-size: 13px; border: 1px solid var(--brand); background: #eef4fc;
+}
+.st-banner.closed { border-color: var(--muted); background: var(--ceased-bg); }
+.st-banner.conflict { border-color: var(--conflict); background: var(--conflict-bg); }

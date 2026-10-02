@@ -59,6 +59,15 @@
               <span class="badge" :class="it.status === 'lost' ? 'missing' : 'ok'">
                 {{ itemStatus[it.status] || it.status }}
               </span>
+              <span
+                v-if="it.stocktake"
+                class="badge"
+                :class="stockMeta(it.stocktake.result).cls"
+                :title="'盘点：' + stockMeta(it.stocktake.result).hint"
+              >
+                盘点·{{ stockMeta(it.stocktake.result).label }}
+              </span>
+              <span v-if="it.in_conflict" class="badge conflict">盘点冲突</span>
               <span class="loc">
                 📍 {{ it.location || "（未排架）" }}
                 <template v-if="it.bound">（装订册 {{ it.binding }}）</template>
@@ -78,11 +87,14 @@
 </template>
 
 <script setup>
-import { HOLDING_STATUS, ITEM_STATUS } from "../status.js";
+import { HOLDING_STATUS, ITEM_STATUS, STOCKTAKE_RESULT } from "../status.js";
 
 defineProps({ data: Object });
 defineEmits(["mark-lost"]);
 const itemStatus = ITEM_STATUS;
+
+const stockMeta = (r) =>
+  STOCKTAKE_RESULT[r] || { label: r, cls: "gap", hint: "" };
 
 const isGap = (s) => s === "not_published" || s === "ceased_gap";
 

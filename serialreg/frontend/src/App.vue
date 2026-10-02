@@ -52,13 +52,29 @@
       <p v-if="!currentId" class="muted">请从左侧选择一种刊，或新增刊种。</p>
 
       <template v-else-if="timeline">
-        <LocateBar :title-id="currentId" />
+        <LocateBar :title-id="currentId" :stocktake-id="stocktakeId" />
+
+        <div v-if="timeline.stocktake" class="st-banner"
+             :class="{ conflict: timeline.stocktake.completeness.open_conflicts > 0 }">
+          盘点进行中：<b>#{{ timeline.stocktake.id }} {{ timeline.stocktake.name }}</b>
+          已见 {{ timeline.stocktake.completeness.seen }} /
+          未见 {{ timeline.stocktake.completeness.pending }} /
+          待核查 {{ timeline.stocktake.completeness.review }} /
+          冲突 {{ timeline.stocktake.completeness.open_conflicts }}
+          <span class="muted">——时间轴与定位结果已按快照标记</span>
+        </div>
 
         <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap">
           <div style="flex:2;min-width:420px">
             <TimelineView :data="timeline" @mark-lost="markLost" />
           </div>
           <div style="flex:1;min-width:340px">
+            <StocktakePanel
+              :title-id="currentId"
+              :active-id="stocktakeId"
+              @changed="refresh"
+              @active-change="onStocktakeActive"
+            />
             <RegisterForms
               :title-id="currentId"
               :timeline="timeline"
@@ -84,12 +100,14 @@ import TimelineView from "./components/TimelineView.vue";
 import LocateBar from "./components/LocateBar.vue";
 import RegisterForms from "./components/RegisterForms.vue";
 import BindingPanel from "./components/BindingPanel.vue";
+import StocktakePanel from "./components/StocktakePanel.vue";
 
 const titles = ref([]);
 const currentId = ref(null);
 const timeline = ref(null);
 const showNewTitle = ref(false);
 const titleMsg = ref(null);
+const stocktakeId = ref(null);
 
 const nt = ref({ title: "", issn: "", status: "active", ceased_month: "" });
 
@@ -102,16 +120,22 @@ async function loadTitles(selectId = null) {
 
 async function selectTitle(id) {
   currentId.value = id;
+  stocktakeId.value = null;
   await refresh();
 }
 
-// 数据变更后：刷新左侧刊名与时间轴
+// 数据变更后：刷新左侧刊名与时间轴（带盘点上下文以显示盘点标记）
 async function refresh() {
   const [tl] = await Promise.all([
-    api.timeline(currentId.value),
+    api.timeline(currentId.value, stocktakeId.value),
     loadTitles(currentId.value),
   ]);
   timeline.value = tl;
+}
+
+function onStocktakeActive(id) {
+  stocktakeId.value = id;
+  refresh();
 }
 
 async function createTitle() {
